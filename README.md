@@ -1,5 +1,4 @@
-<img height="90" align="right" src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Wave.svg/133px-Wave.svg.png" />
-<img height="90" align="right" src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Postgresql_elephant.svg/200px-Postgresql_elephant.svg.png" />
+<img height="90" alt="Slonik Duke" align="right" src="docs/media/img/slonik_duke.png" />
 
 # PostgreSQL JDBC Driver
 
@@ -24,36 +23,36 @@ Most people do not need to compile PgJDBC. You can download the precompiled driv
 ### Maven Central
 You can search on The Central Repository with GroupId and ArtifactId [![Maven Search](https://img.shields.io/badge/org.postgresql-postgresql-yellow.svg)][mvn-search] for:
 
-[![Java 8](https://img.shields.io/badge/Java_8-42.1.1-blue.svg)][mvn-jre8]
+[![Java 8](https://img.shields.io/badge/Java_8-42.1.4-blue.svg)][mvn-jre8]
 ```xml
 <dependency>
     <groupId>org.postgresql</groupId>
     <artifactId>postgresql</artifactId>
-    <version>42.1.1</version>
+    <version>42.1.4</version>
 </dependency>
 ```
 
-[![Java 7](https://img.shields.io/badge/Java_7-42.1.1.jre7-blue.svg)][mvn-jre7]
+[![Java 7](https://img.shields.io/badge/Java_7-42.1.4.jre7-blue.svg)][mvn-jre7]
 ```xml
 <dependency>
     <groupId>org.postgresql</groupId>
     <artifactId>postgresql</artifactId>
-    <version>42.1.1.jre7</version>
+    <version>42.1.4.jre7</version>
 </dependency>
 ```
 
-[![Java 6](https://img.shields.io/badge/Java_6-42.1.1.jre6-blue.svg)][mvn-jre6]
+[![Java 6](https://img.shields.io/badge/Java_6-42.1.4.jre6-blue.svg)][mvn-jre6]
 ```xml
 <dependency>
     <groupId>org.postgresql</groupId>
     <artifactId>postgresql</artifactId>
-    <version>42.1.1.jre6</version>
+    <version>42.1.4.jre6</version>
 </dependency>
 ```
 [mvn-search]: http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.postgresql%22%20AND%20a%3A%22postgresql%22 "Search on Maven Central"
-[mvn-jre6]: http://search.maven.org/#artifactdetails|org.postgresql|postgresql|42.1.1.jre6|bundle
-[mvn-jre7]: http://search.maven.org/#artifactdetails|org.postgresql|postgresql|42.1.1.jre7|bundle
-[mvn-jre8]: http://search.maven.org/#artifactdetails|org.postgresql|postgresql|42.1.1|bundle
+[mvn-jre6]: http://search.maven.org/#artifactdetails|org.postgresql|postgresql|42.1.4.jre6|bundle
+[mvn-jre7]: http://search.maven.org/#artifactdetails|org.postgresql|postgresql|42.1.4.jre7|bundle
+[mvn-jre8]: http://search.maven.org/#artifactdetails|org.postgresql|postgresql|42.1.4|bundle
 
 #### Development snapshots
 Snapshot builds (builds from `master` branch) are also deployed to Maven Central, so you can test current development version (test some bugfix) using:
@@ -61,67 +60,13 @@ Snapshot builds (builds from `master` branch) are also deployed to Maven Central
 <dependency>
   <groupId>org.postgresql</groupId>
   <artifactId>postgresql</artifactId>
-  <version>42.1.2-SNAPSHOT</version> <!-- Java 8 -->
-  <version>42.1.2.jre7-SNAPSHOT</version> <!-- Java 7 -->
-  <version>42.1.2.jre6-SNAPSHOT</version> <!-- Java 6 -->
+  <version>42.1.5-SNAPSHOT</version> <!-- Java 8 -->
+  <version>42.1.5.jre7-SNAPSHOT</version> <!-- Java 7 -->
+  <version>42.1.5.jre6-SNAPSHOT</version> <!-- Java 6 -->
 </dependency>
 ```
 
 There are also available (snapshot) binary RPMs in [Fedora's Copr repository](https://copr.fedorainfracloud.org/coprs/g/pgjdbc/pgjdbc-travis/).
-
-
-
-## Changelog
-Notable changes for:
-
-**[42.1.1]** (2017-05-05):
-* fix: infinite dates might be corrupted when transferred in binary for certain JREs. For instance, 5881610-07-11 instead of infinity.
-
-**[42.1.0]** (2017-05-04):
-* fix: data being trucated in setCharacterStream (the bug introduced in 42.0.0) [PR#802](https://github.com/pgjdbc/pgjdbc/pull/802)
-* fix: calculation of lastReceiveLSN for logical replication [PR#801](https://github.com/pgjdbc/pgjdbc/pull/801)
-* fix: make sure org.postgresql.Driver is loaded when accessing though DataSource interface [#768](https://github.com/pgjdbc/pgjdbc/issues/768)
-* feat: support fetching a REF_CURSOR using getObject [PR#809](https://github.com/pgjdbc/pgjdbc/pull/809)
-* note: there's no 42.1.0.jre6 due to infinity handling bug. Fixed in 42.1.1.jre6
-
-**[42.0.0]** (2017-02-20):
-* Support for PostgreSQL versions below 8.2 was dropped
-* java.util.logging is now used for logging: [logging documentation](https://jdbc.postgresql.org//documentation/head/logging.html)
-* Ensure executeBatch() can be used with pgbouncer. Previously pgjdbc could use server-prepared statements for batch execution even with prepareThreshold=0 (see [issue 742](https://github.com/pgjdbc/pgjdbc/issues/742))
-* Replication protocol API was added: [replication API documentation](https://jdbc.postgresql.org//documentation/head/replication.html), [GitHub PR 550](https://github.com/pgjdbc/pgjdbc/pull/550)
-* Version bumped to 42.0.0 to avoid version clash with PostgreSQL version
-* Error position is displayed when SQL has unterminated literals, comments, etc (see [issue 688](https://github.com/pgjdbc/pgjdbc/issues/688))
-
-**[9.4.1212]** (2016-11-02):
-* ? can now be used in non-prepared statements (fixed regression of 9.4.1210)
-
-**[9.4.1211]** (2016-09-18):
-* json type is returned as PGObject like in pre-9.4.1210 (fixed regression of 9.4.1210)
-* 'current transaction is aborted' exception includes the original exception via caused-by chain
-
-**[9.4.1210]** (2016-09-07):
-* BUG: json datatype is returned as java.lang.String object, not as PGObject (fixed in 9.4.1211)
-* Better support for RETURN_GENERATED_KEYS, statements with RETURNING clause
-* Avoid user-visible prepared-statement errors if client uses DEALLOCATE/DISCARD statements (invalidate cache when those statements detected)
-* Avoid user-visible prepared-statement errors if client changes search_path (invalidate cache when set search_path detected)
-* Support comments when replacing {fn ...} JDBC syntax
-* Support for Types.REF_CURSOR
-
-**[9.4.1209]** (2016-07-15):
-* Many improvements to `insert into .. values(?,?)` => `insert .. values(?,?), (?,?)...` rewriter. Give it a try by using `reWriteBatchedInserts=true` connection property. 2-3x improvements for insert batch can be expected
-* Full test suite passes against PostgreSQL 9.6, and OpenJDK 9
-* Performance optimization for timestamps (~`TimeZone.getDefault` optimization)
-* Allow build-from-source on GNU/Linux without maven repositories, and add Fedora Copr test to the regression suite
-
-[42.1.1]: https://github.com/pgjdbc/pgjdbc/compare/REL42.1.0...REL42.1.1
-[42.1.0]: https://github.com/pgjdbc/pgjdbc/compare/REL42.0.0...REL42.1.0
-[42.0.0]: https://github.com/pgjdbc/pgjdbc/compare/REL9.4.1212...REL42.0.0
-[9.4.1212]: https://github.com/pgjdbc/pgjdbc/compare/REL9.4.1211...REL9.4.1212
-[9.4.1211]: https://github.com/pgjdbc/pgjdbc/compare/REL9.4.1210...REL9.4.1211
-[9.4.1210]: https://github.com/pgjdbc/pgjdbc/compare/REL9.4.1209...REL9.4.1210
-[9.4.1209]: https://github.com/pgjdbc/pgjdbc/compare/REL9.4.1208...REL9.4.1209
-
-Read the [History of Changes](https://jdbc.postgresql.org/documentation/changelog.html#introduction) for reference of previous versions.
 
 ----------------------------------------------------
 ## Documentation
@@ -201,7 +146,7 @@ In addition to the standard connection parameters the driver supports a number o
 | socketFactory                 | String  | null    | Specify a socket factory for socket creation |
 | socketFactoryArg              | String  | null    | Argument forwarded to constructor of SocketFactory class. |
 | autosave                      | String  | never   | Specifies what the driver should do if a query fails, possible values: always, never, conservative |
-| preferQueryMode               | String  | extended | Specifies which mode is used to execute queries to database, possible values: extended, extendedForPrepared, extendedCacheEveryting, simple |
+| preferQueryMode               | String  | extended | Specifies which mode is used to execute queries to database, possible values: extended, extendedForPrepared, extendedCacheEverything, simple |
 | reWriteBatchedInserts         | Boolean | false  | Enable optimization to rewrite and collapse compatible INSERT statements that are batched. |
 
 ## Contributing 

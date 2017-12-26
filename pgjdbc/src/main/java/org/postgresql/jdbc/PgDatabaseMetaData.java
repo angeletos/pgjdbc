@@ -980,7 +980,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
       String procedureNamePattern, String columnNamePattern) throws SQLException {
     int columns = 20;
 
-    Field f[] = new Field[columns];
+    Field[] f = new Field[columns];
     List<byte[][]> v = new ArrayList<byte[][]>(); // The new ResultSet tuple stuff
 
     f[0] = new Field("PROCEDURE_CAT", Oid.VARCHAR);
@@ -1017,15 +1017,15 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
     }
     sql += " ORDER BY n.nspname, p.proname, p.oid::text ";
 
-    byte isnullableUnknown[] = new byte[0];
+    byte[] isnullableUnknown = new byte[0];
 
     Statement stmt = connection.createStatement();
     ResultSet rs = stmt.executeQuery(sql);
     while (rs.next()) {
-      byte schema[] = rs.getBytes("nspname");
-      byte procedureName[] = rs.getBytes("proname");
-      byte specificName[] =
-          connection.encodeString(rs.getString("proname") + "_" + rs.getString("oid"));
+      byte[] schema = rs.getBytes("nspname");
+      byte[] procedureName = rs.getBytes("proname");
+      byte[] specificName =
+                connection.encodeString(rs.getString("proname") + "_" + rs.getString("oid"));
       int returnType = (int) rs.getLong("prorettype");
       String returnTypeType = rs.getString("typtype");
       int returnTypeRelid = (int) rs.getLong("typrelid");
@@ -1037,13 +1037,13 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
         argTypes.add(Long.valueOf(st.nextToken()));
       }
 
-      String argNames[] = null;
+      String[] argNames = null;
       Array argNamesArray = rs.getArray("proargnames");
       if (argNamesArray != null) {
         argNames = (String[]) argNamesArray.getArray();
       }
 
-      String argModes[] = null;
+      String[] argModes = null;
       Array argModesArray = rs.getArray("proargmodes");
       if (argModesArray != null) {
         argModes = (String[]) argModesArray.getArray();
@@ -1051,7 +1051,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
 
       int numArgs = argTypes.size();
 
-      Long allArgTypes[] = null;
+      Long[] allArgTypes = null;
       Array allArgTypesArray = rs.getArray("proallargtypes");
       if (allArgTypesArray != null) {
         allArgTypes = (Long[]) allArgTypesArray.getArray();
@@ -1137,7 +1137,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
       if (returnTypeType.equals("c") || (returnTypeType.equals("p") && argModesArray != null)) {
         String columnsql = "SELECT a.attname,a.atttypid FROM pg_catalog.pg_attribute a "
                            + " WHERE a.attrelid = " + returnTypeRelid
-                           + " AND a.attnum > 0 ORDER BY a.attnum ";
+                           + " AND NOT a.attisdropped AND a.attnum > 0 ORDER BY a.attnum ";
         Statement columnstmt = connection.createStatement();
         ResultSet columnrs = columnstmt.executeQuery(columnsql);
         while (columnrs.next()) {
@@ -1177,11 +1177,10 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
 
   @Override
   public ResultSet getTables(String catalog, String schemaPattern, String tableNamePattern,
-      String types[]) throws SQLException {
+                             String[] types) throws SQLException {
     String select;
     String orderby;
-    String useSchemas;
-    useSchemas = "SCHEMAS";
+    String useSchemas = "SCHEMAS";
     select = "SELECT NULL AS TABLE_CAT, n.nspname AS TABLE_SCHEM, c.relname AS TABLE_NAME, "
              + " CASE n.nspname ~ '^pg_' OR n.nspname = 'information_schema' "
              + " WHEN true THEN CASE "
@@ -1198,6 +1197,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
              + "  END "
              + " ELSE CASE c.relkind "
              + "  WHEN 'r' THEN 'TEMPORARY TABLE' "
+             + "  WHEN 'p' THEN 'TEMPORARY TABLE' "
              + "  WHEN 'i' THEN 'TEMPORARY INDEX' "
              + "  WHEN 'S' THEN 'TEMPORARY SEQUENCE' "
              + "  WHEN 'v' THEN 'TEMPORARY VIEW' "
@@ -1206,6 +1206,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
              + " END "
              + " WHEN false THEN CASE c.relkind "
              + " WHEN 'r' THEN 'TABLE' "
+             + " WHEN 'p' THEN 'TABLE' "
              + " WHEN 'i' THEN 'INDEX' "
              + " WHEN 'S' THEN 'SEQUENCE' "
              + " WHEN 'v' THEN 'VIEW' "
@@ -1255,8 +1256,8 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
     Map<String, String> ht = new HashMap<String, String>();
     tableTypeClauses.put("TABLE", ht);
     ht.put("SCHEMAS",
-        "c.relkind = 'r' AND n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'");
-    ht.put("NOSCHEMAS", "c.relkind = 'r' AND c.relname !~ '^pg_'");
+        "c.relkind IN ('r','p') AND n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'");
+    ht.put("NOSCHEMAS", "c.relkind IN ('r','p') AND c.relname !~ '^pg_'");
     ht = new HashMap<String, String>();
     tableTypeClauses.put("VIEW", ht);
     ht.put("SCHEMAS",
@@ -1303,8 +1304,8 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
         "c.relkind = 'v' AND c.relname ~ '^pg_' AND c.relname !~ '^pg_toast_' AND c.relname !~ '^pg_temp_'");
     ht = new HashMap<String, String>();
     tableTypeClauses.put("TEMPORARY TABLE", ht);
-    ht.put("SCHEMAS", "c.relkind = 'r' AND n.nspname ~ '^pg_temp_' ");
-    ht.put("NOSCHEMAS", "c.relkind = 'r' AND c.relname ~ '^pg_temp_' ");
+    ht.put("SCHEMAS", "c.relkind IN ('r','p') AND n.nspname ~ '^pg_temp_' ");
+    ht.put("NOSCHEMAS", "c.relkind IN ('r','p') AND c.relname ~ '^pg_temp_' ");
     ht = new HashMap<String, String>();
     tableTypeClauses.put("TEMPORARY INDEX", ht);
     ht.put("SCHEMAS", "c.relkind = 'i' AND n.nspname ~ '^pg_temp_' ");
@@ -1353,7 +1354,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
    */
   @Override
   public ResultSet getCatalogs() throws SQLException {
-    Field f[] = new Field[1];
+    Field[] f = new Field[1];
     List<byte[][]> v = new ArrayList<byte[][]>();
     f[0] = new Field("TABLE_CAT", Oid.VARCHAR);
     byte[][] tuple = new byte[1][];
@@ -1365,10 +1366,10 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
 
   @Override
   public ResultSet getTableTypes() throws SQLException {
-    String types[] = tableTypeClauses.keySet().toArray(new String[0]);
+    String[] types = tableTypeClauses.keySet().toArray(new String[0]);
     Arrays.sort(types);
 
-    Field f[] = new Field[1];
+    Field[] f = new Field[1];
     List<byte[][]> v = new ArrayList<byte[][]>();
     f[0] = new Field("TABLE_TYPE", Oid.VARCHAR);
     for (String type : types) {
@@ -1385,7 +1386,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
 
     int numberOfFields = 23; // JDBC4
     List<byte[][]> v = new ArrayList<byte[][]>(); // The new ResultSet tuple stuff
-    Field f[] = new Field[numberOfFields]; // The field descriptors for the new ResultSet
+    Field[] f = new Field[numberOfFields]; // The field descriptors for the new ResultSet
 
     f[0] = new Field("TABLE_CAT", Oid.VARCHAR);
     f[1] = new Field("TABLE_SCHEM", Oid.VARCHAR);
@@ -1435,6 +1436,11 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
       sql += "a.attnum,";
     }
 
+    if (connection.haveMinimumServerVersion(ServerVersion.v10)) {
+      sql += "nullif(a.attidentity, '') as attidentity,";
+    } else {
+      sql += "null as attidentity,";
+    }
     sql += "pg_catalog.pg_get_expr(def.adbin, def.adrelid) AS adsrc,dsc.description,t.typbasetype,t.typtype "
            + " FROM pg_catalog.pg_namespace n "
            + " JOIN pg_catalog.pg_class c ON (c.relnamespace = n.oid) "
@@ -1444,7 +1450,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
            + " LEFT JOIN pg_catalog.pg_description dsc ON (c.oid=dsc.objoid AND a.attnum = dsc.objsubid) "
            + " LEFT JOIN pg_catalog.pg_class dc ON (dc.oid=dsc.classoid AND dc.relname='pg_class') "
            + " LEFT JOIN pg_catalog.pg_namespace dn ON (dc.relnamespace=dn.oid AND dn.nspname='pg_catalog') "
-           + " WHERE c.relkind in ('r','v','f','m') and a.attnum > 0 AND NOT a.attisdropped ";
+           + " WHERE c.relkind in ('r','p','v','f','m') and a.attnum > 0 AND NOT a.attisdropped ";
 
     if (schemaPattern != null && !schemaPattern.isEmpty()) {
       sql += " AND n.nspname LIKE " + escapeQuotes(schemaPattern);
@@ -1503,6 +1509,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
           }
         }
       }
+      String identity = rs.getString("attidentity");
 
       int decimalDigits = connection.getTypeInfo().getScale(typeOid, typeMod);
       int columnSize = connection.getTypeInfo().getPrecision(typeOid, typeMod);
@@ -1541,7 +1548,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
                   : connection.encodeString(Integer.toString(connection.getTypeInfo().getSQLType(baseTypeOid))); // SOURCE_DATA_TYPE
 
       String autoinc = "NO";
-      if (defval != null && defval.contains("nextval(")) {
+      if (defval != null && defval.contains("nextval(") || identity != null) {
         autoinc = "YES";
       }
       tuple[22] = connection.encodeString(autoinc);
@@ -1557,7 +1564,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
   @Override
   public ResultSet getColumnPrivileges(String catalog, String schema, String table,
       String columnNamePattern) throws SQLException {
-    Field f[] = new Field[8];
+    Field[] f = new Field[8];
     List<byte[][]> v = new ArrayList<byte[][]>();
 
     f[0] = new Field("TABLE_CAT", Oid.VARCHAR);
@@ -1595,9 +1602,9 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
     Statement stmt = connection.createStatement();
     ResultSet rs = stmt.executeQuery(sql);
     while (rs.next()) {
-      byte schemaName[] = rs.getBytes("nspname");
-      byte tableName[] = rs.getBytes("relname");
-      byte column[] = rs.getBytes("attname");
+      byte[] schemaName = rs.getBytes("nspname");
+      byte[] tableName = rs.getBytes("relname");
+      byte[] column = rs.getBytes("attname");
       String owner = rs.getString("rolname");
       String relAcl = rs.getString("relacl");
 
@@ -1609,7 +1616,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
         Map<String, Map<String, List<String[]>>> relPermissions = parseACL(acl, owner);
         permissions.putAll(relPermissions);
       }
-      String permNames[] = permissions.keySet().toArray(new String[0]);
+      String[] permNames = permissions.keySet().toArray(new String[0]);
       Arrays.sort(permNames);
       for (String permName : permNames) {
         byte[] privilege = connection.encodeString(permName);
@@ -1642,7 +1649,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
   @Override
   public ResultSet getTablePrivileges(String catalog, String schemaPattern,
       String tableNamePattern) throws SQLException {
-    Field f[] = new Field[7];
+    Field[] f = new Field[7];
     List<byte[][]> v = new ArrayList<byte[][]>();
 
     f[0] = new Field("TABLE_CAT", Oid.VARCHAR);
@@ -1658,7 +1665,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
           + " FROM pg_catalog.pg_namespace n, pg_catalog.pg_class c, pg_catalog.pg_roles r "
           + " WHERE c.relnamespace = n.oid "
           + " AND c.relowner = r.oid "
-          + " AND c.relkind = 'r' ";
+          + " AND c.relkind IN ('r','p') ";
 
     if (schemaPattern != null && !schemaPattern.isEmpty()) {
       sql += " AND n.nspname LIKE " + escapeQuotes(schemaPattern);
@@ -1672,12 +1679,12 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
     Statement stmt = connection.createStatement();
     ResultSet rs = stmt.executeQuery(sql);
     while (rs.next()) {
-      byte schema[] = rs.getBytes("nspname");
-      byte table[] = rs.getBytes("relname");
+      byte[] schema = rs.getBytes("nspname");
+      byte[] table = rs.getBytes("relname");
       String owner = rs.getString("rolname");
       String acl = rs.getString("relacl");
       Map<String, Map<String, List<String[]>>> permissions = parseACL(acl, owner);
-      String permNames[] = permissions.keySet().toArray(new String[0]);
+      String[] permNames = permissions.keySet().toArray(new String[0]);
       Arrays.sort(permNames);
       for (String permName : permNames) {
         byte[] privilege = connection.encodeString(permName);
@@ -1699,7 +1706,6 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
             tuple[5] = privilege;
             tuple[6] = connection.encodeString(grantable);
             v.add(tuple);
-
           }
         }
       }
@@ -1786,6 +1792,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
             sqlpriv = "INSERT";
             break;
           case 'r':
+          case 'p':
             sqlpriv = "SELECT";
             break;
           case 'w':
@@ -1876,7 +1883,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
 
   public ResultSet getBestRowIdentifier(String catalog, String schema, String table,
       int scope, boolean nullable) throws SQLException {
-    Field f[] = new Field[8];
+    Field[] f = new Field[8];
     List<byte[][]> v = new ArrayList<byte[][]>(); // The new ResultSet tuple stuff
 
     f[0] = new Field("SCOPE", Oid.INT2);
@@ -1915,7 +1922,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
     Statement stmt = connection.createStatement();
     ResultSet rs = stmt.executeQuery(sql);
     while (rs.next()) {
-      byte tuple[][] = new byte[8][];
+      byte[][] tuple = new byte[8][];
       int typeOid = (int) rs.getLong("atttypid");
       int typeMod = rs.getInt("atttypmod");
       int decimalDigits = connection.getTypeInfo().getScale(typeOid, typeMod);
@@ -1943,7 +1950,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
 
   public ResultSet getVersionColumns(String catalog, String schema, String table)
       throws SQLException {
-    Field f[] = new Field[8];
+    Field[] f = new Field[8];
     List<byte[][]> v = new ArrayList<byte[][]>(); // The new ResultSet tuple stuff
 
     f[0] = new Field("SCOPE", Oid.INT2);
@@ -1955,7 +1962,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
     f[6] = new Field("DECIMAL_DIGITS", Oid.INT2);
     f[7] = new Field("PSEUDO_COLUMN", Oid.INT2);
 
-    byte tuple[][] = new byte[8][];
+    byte[][] tuple = new byte[8][];
 
     /*
      * Postgresql does not have any column types that are automatically updated like some databases'
@@ -2044,6 +2051,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
             + " WHEN 'n' THEN " + DatabaseMetaData.importedKeySetNull
             + " WHEN 'd' THEN " + DatabaseMetaData.importedKeySetDefault
             + " WHEN 'r' THEN " + DatabaseMetaData.importedKeyRestrict
+            + " WHEN 'p' THEN " + DatabaseMetaData.importedKeyRestrict
             + " WHEN 'a' THEN " + DatabaseMetaData.importedKeyNoAction
             + " ELSE NULL END AS UPDATE_RULE, "
             + "CASE con.confdeltype "
@@ -2051,6 +2059,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
             + " WHEN 'n' THEN " + DatabaseMetaData.importedKeySetNull
             + " WHEN 'd' THEN " + DatabaseMetaData.importedKeySetDefault
             + " WHEN 'r' THEN " + DatabaseMetaData.importedKeyRestrict
+            + " WHEN 'p' THEN " + DatabaseMetaData.importedKeyRestrict
             + " WHEN 'a' THEN " + DatabaseMetaData.importedKeyNoAction
             + " ELSE NULL END AS DELETE_RULE, "
             + "con.conname AS FK_NAME, pkic.relname AS PK_NAME, "
@@ -2123,7 +2132,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
 
   public ResultSet getTypeInfo() throws SQLException {
 
-    Field f[] = new Field[18];
+    Field[] f = new Field[18];
     List<byte[][]> v = new ArrayList<byte[][]>(); // The new ResultSet tuple stuff
 
     f[0] = new Field("TYPE_NAME", Oid.VARCHAR);
@@ -2154,15 +2163,15 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
     ResultSet rs = stmt.executeQuery(sql);
     // cache some results, this will keep memory usage down, and speed
     // things up a little.
-    byte bZero[] = connection.encodeString("0");
-    byte b10[] = connection.encodeString("10");
-    byte bf[] = connection.encodeString("f");
-    byte bt[] = connection.encodeString("t");
-    byte bliteral[] = connection.encodeString("'");
-    byte bNullable[] =
-        connection.encodeString(Integer.toString(java.sql.DatabaseMetaData.typeNullable));
-    byte bSearchable[] =
-        connection.encodeString(Integer.toString(java.sql.DatabaseMetaData.typeSearchable));
+    byte[] bZero = connection.encodeString("0");
+    byte[] b10 = connection.encodeString("10");
+    byte[] bf = connection.encodeString("f");
+    byte[] bt = connection.encodeString("t");
+    byte[] bliteral = connection.encodeString("'");
+    byte[] bNullable =
+              connection.encodeString(Integer.toString(java.sql.DatabaseMetaData.typeNullable));
+    byte[] bSearchable =
+              connection.encodeString(Integer.toString(java.sql.DatabaseMetaData.typeSearchable));
 
     while (rs.next()) {
       byte[][] tuple = new byte[18][];
@@ -2498,7 +2507,7 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
 
   @Override
   public ResultSet getClientInfoProperties() throws SQLException {
-    Field f[] = new Field[4];
+    Field[] f = new Field[4];
     f[0] = new Field("NAME", Oid.VARCHAR);
     f[1] = new Field("MAX_LEN", Oid.INT4);
     f[2] = new Field("DEFAULT_VALUE", Oid.VARCHAR);
@@ -2532,7 +2541,41 @@ public class PgDatabaseMetaData implements DatabaseMetaData {
 
   public ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern)
       throws SQLException {
-    return getProcedures(catalog, schemaPattern, functionNamePattern);
+
+    // The pg_get_function_result only exists 8.4 or later
+    boolean pgFuncResultExists = connection.haveMinimumServerVersion(ServerVersion.v8_4);
+
+    // Use query that support pg_get_function_result to get function result, else unknown is defaulted
+    String funcTypeSql = DatabaseMetaData.functionResultUnknown + " ";
+    if (pgFuncResultExists) {
+      funcTypeSql = " CASE "
+              + "   WHEN (format_type(p.prorettype, null) = 'unknown') THEN " + DatabaseMetaData.functionResultUnknown
+              + "   WHEN "
+              + "     (substring(pg_get_function_result(p.oid) from 0 for 6) = 'TABLE') OR "
+              + "     (substring(pg_get_function_result(p.oid) from 0 for 6) = 'SETOF') THEN " + DatabaseMetaData.functionReturnsTable
+              + "   ELSE " + DatabaseMetaData.functionNoTable
+              + " END ";
+    }
+
+    // Build query and result
+    String sql;
+    sql = "SELECT current_database() AS FUNCTION_CAT, n.nspname AS FUNCTION_SCHEM, p.proname AS FUNCTION_NAME, "
+        + " d.description AS REMARKS, "
+        + funcTypeSql + " AS FUNCTION_TYPE, "
+        + " p.proname || '_' || p.oid AS SPECIFIC_NAME "
+        + "FROM pg_catalog.pg_proc p "
+        + "INNER JOIN pg_catalog.pg_namespace n ON p.pronamespace=n.oid "
+        + "LEFT JOIN pg_catalog.pg_description d ON p.oid=d.objoid "
+        + "WHERE pg_function_is_visible(p.oid) ";
+    if (schemaPattern != null && !schemaPattern.isEmpty()) {
+      sql += " AND n.nspname LIKE " + escapeQuotes(schemaPattern);
+    }
+    if (functionNamePattern != null && !functionNamePattern.isEmpty()) {
+      sql += " AND p.proname LIKE " + escapeQuotes(functionNamePattern);
+    }
+    sql += " ORDER BY FUNCTION_SCHEM, FUNCTION_NAME, p.oid::text ";
+
+    return createMetaDataStatement().executeQuery(sql);
   }
 
   public ResultSet getFunctionColumns(String catalog, String schemaPattern,

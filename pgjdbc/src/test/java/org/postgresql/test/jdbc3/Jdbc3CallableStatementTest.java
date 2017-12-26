@@ -7,6 +7,7 @@ package org.postgresql.test.jdbc3;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -29,11 +30,7 @@ import java.sql.Types;
  */
 public class Jdbc3CallableStatementTest extends BaseTest4 {
 
-  /*
-   * (non-Javadoc)
-   *
-   * @see junit.framework.TestCase#setUp()
-   */
+  @Override
   public void setUp() throws Exception {
     super.setUp();
     Statement stmt = con.createStatement();
@@ -86,17 +83,10 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
         + "pc := pa + 1;"
         + "end;'"
         + "LANGUAGE plpgsql VOLATILE;"
-
     );
-
-
   }
 
-  /*
-   * (non-Javadoc)
-   *
-   * @see junit.framework.TestCase#tearDown()
-   */
+  @Override
   public void tearDown() throws SQLException {
     Statement stmt = con.createStatement();
     stmt.execute("drop function Numeric_Proc(out decimal, out decimal, out decimal)");
@@ -125,7 +115,6 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
 
   @Test
   public void testNotEnoughParameters() throws Throwable {
-
     assumeCallableStatementsSupported();
     CallableStatement cs = con.prepareCall("{call myiofunc(?,?)}");
     cs.setInt(1, 2);
@@ -141,7 +130,6 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
 
   @Test
   public void testTooManyParameters() throws Throwable {
-
     CallableStatement cs = con.prepareCall("{call myif(?,?)}");
     try {
       cs.setInt(1, 1);
@@ -158,7 +146,6 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
 
   @Test
   public void testAllInOut() throws Throwable {
-
     CallableStatement call = con.prepareCall("{ call test_allinout(?,?,?) }");
 
     call.registerOutParameter(1, Types.INTEGER);
@@ -185,22 +172,20 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
     call.registerOutParameter(3, Types.NUMERIC, 15);
 
     call.executeUpdate();
-    java.math.BigDecimal ret = call.getBigDecimal(1);
+    BigDecimal ret = call.getBigDecimal(1);
     assertTrue(
         "correct return from getNumeric () should be 999999999999999.000000000000000 but returned "
             + ret.toString(),
-        ret.equals(new java.math.BigDecimal("999999999999999.000000000000000")));
+        ret.equals(new BigDecimal("999999999999999.000000000000000")));
 
     ret = call.getBigDecimal(2);
     assertTrue("correct return from getNumeric ()",
-        ret.equals(new java.math.BigDecimal("0.000000000000001")));
+        ret.equals(new BigDecimal("0.000000000000001")));
     try {
       ret = call.getBigDecimal(3);
     } catch (NullPointerException ex) {
       assertTrue("This should be null", call.wasNull());
     }
-
-
   }
 
   @Test
@@ -233,11 +218,11 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
       cstmt.registerOutParameter(3, Types.DECIMAL);
       cstmt.executeUpdate();
       BigDecimal val = (BigDecimal) cstmt.getObject(1);
-      assertTrue(val.compareTo(new BigDecimal("999999999999999.000000000000000")) == 0);
+      assertEquals(0, val.compareTo(new BigDecimal("999999999999999.000000000000000")));
       val = (BigDecimal) cstmt.getObject(2);
-      assertTrue(val.compareTo(new BigDecimal("0.000000000000001")) == 0);
+      assertEquals(0, val.compareTo(new BigDecimal("0.000000000000001")));
       val = (BigDecimal) cstmt.getObject(3);
-      assertTrue(val == null);
+      assertNull(val);
     } catch (Exception ex) {
       fail(ex.getMessage());
     } finally {
@@ -269,7 +254,6 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
       throw ex;
     }
     try {
-      String str = Boolean.TRUE.toString();
       CallableStatement cstmt = con.prepareCall("{ call updatevarchar(?,?) }");
       cstmt.setObject(1, Boolean.TRUE, Types.VARCHAR);
       cstmt.setObject(2, Boolean.FALSE, Types.VARCHAR);
@@ -416,9 +400,9 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
       cstmt.registerOutParameter(2, Types.LONGVARCHAR);
       cstmt.executeUpdate();
       String val = (String) cstmt.getObject(1);
-      assertTrue(val.equals("testdata"));
+      assertEquals("testdata", val);
       val = (String) cstmt.getObject(2);
-      assertTrue(val == null);
+      assertNull(val);
       cstmt.close();
       cstmt = con.prepareCall("{ call lvarchar_in_name(?) }");
       String maxFloat = "3.4E38";
@@ -475,11 +459,11 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
       cstmt.executeUpdate();
       byte[] retval = cstmt.getBytes(1);
       for (int i = 0; i < testdata.length; i++) {
-        assertTrue(testdata[i] == retval[i]);
+        assertEquals(testdata[i], retval[i]);
       }
 
       retval = cstmt.getBytes(2);
-      assertTrue(retval == null);
+      assertNull(retval);
     } catch (Exception ex) {
       fail(ex.getMessage());
     } finally {
@@ -648,11 +632,11 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
       cstmt.executeUpdate();
       byte[] retval = cstmt.getBytes(1);
       for (int i = 0; i < testdata.length; i++) {
-        assertTrue(testdata[i] == retval[i]);
+        assertEquals(testdata[i], retval[i]);
       }
 
       retval = cstmt.getBytes(2);
-      assertTrue(retval == null);
+      assertNull(retval);
     } catch (Exception ex) {
       fail(ex.getMessage());
     } finally {
@@ -810,8 +794,8 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
       cstmt.registerOutParameter(2, java.sql.Types.SMALLINT);
       cstmt.registerOutParameter(3, java.sql.Types.SMALLINT);
       cstmt.executeUpdate();
-      assertTrue(cstmt.getShort(1) == 32767);
-      assertTrue(cstmt.getShort(2) == -32768);
+      assertEquals(32767, cstmt.getShort(1));
+      assertEquals(-32768, cstmt.getShort(2));
       cstmt.getShort(3);
       assertTrue(cstmt.wasNull());
     } catch (Exception ex) {
@@ -851,8 +835,8 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
       cstmt.registerOutParameter(2, java.sql.Types.INTEGER);
       cstmt.registerOutParameter(3, java.sql.Types.INTEGER);
       cstmt.executeUpdate();
-      assertTrue(cstmt.getInt(1) == 2147483647);
-      assertTrue(cstmt.getInt(2) == -2147483648);
+      assertEquals(2147483647, cstmt.getInt(1));
+      assertEquals(-2147483648, cstmt.getInt(2));
       cstmt.getInt(3);
       assertTrue(cstmt.wasNull());
     } catch (Exception ex) {
@@ -892,8 +876,8 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
       cstmt.registerOutParameter(2, java.sql.Types.BIGINT);
       cstmt.registerOutParameter(3, java.sql.Types.BIGINT);
       cstmt.executeUpdate();
-      assertTrue(cstmt.getLong(1) == 9223372036854775807L);
-      assertTrue(cstmt.getLong(2) == -9223372036854775808L);
+      assertEquals(9223372036854775807L, cstmt.getLong(1));
+      assertEquals(-9223372036854775808L, cstmt.getLong(2));
       cstmt.getLong(3);
       assertTrue(cstmt.wasNull());
     } catch (Exception ex) {
@@ -974,8 +958,8 @@ public class Jdbc3CallableStatementTest extends BaseTest4 {
       cstmt.registerOutParameter(2, java.sql.Types.TINYINT);
       cstmt.registerOutParameter(3, java.sql.Types.TINYINT);
       cstmt.executeUpdate();
-      assertTrue(cstmt.getByte(1) == 127);
-      assertTrue(cstmt.getByte(2) == -128);
+      assertEquals(127, cstmt.getByte(1));
+      assertEquals(-128, cstmt.getByte(2));
       cstmt.getByte(3);
       assertTrue(cstmt.wasNull());
     } catch (Exception ex) {

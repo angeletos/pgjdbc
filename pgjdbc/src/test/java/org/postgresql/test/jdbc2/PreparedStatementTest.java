@@ -11,6 +11,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.postgresql.PGStatement;
 import org.postgresql.jdbc.PgStatement;
 import org.postgresql.jdbc.PreferQueryMode;
 import org.postgresql.test.TestUtil;
@@ -27,6 +28,7 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -35,6 +37,7 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicLong;
 
 
 @RunWith(Parameterized.class)
@@ -75,11 +78,28 @@ public class PreparedStatementTest extends BaseTest4 {
     super.tearDown();
   }
 
+  private int getNumberOfServerPreparedStatements(String sql)
+      throws SQLException {
+    PreparedStatement pstmt = null;
+    ResultSet rs = null;
+    try {
+      pstmt = con.prepareStatement(
+          "select count(*) from pg_prepared_statements where statement = ?");
+      pstmt.setString(1, sql);
+      rs = pstmt.executeQuery();
+      rs.next();
+      return rs.getInt(1);
+    } finally {
+      TestUtil.closeQuietly(rs);
+      TestUtil.closeQuietly(pstmt);
+    }
+  }
+
   @Test
   public void testSetBinaryStream() throws SQLException {
     assumeByteaSupported();
     ByteArrayInputStream bais;
-    byte buf[] = new byte[10];
+    byte[] buf = new byte[10];
     for (int i = 0; i < buf.length; i++) {
       buf[i] = (byte) i;
     }
@@ -141,16 +161,7 @@ public class PreparedStatementTest extends BaseTest4 {
 
   @Test
   public void testBinaryStreamErrorsRestartable() throws SQLException {
-    // The V2 protocol does not have the ability to recover when
-    // streaming data to the server. We could potentially try
-    // introducing a syntax error to force the query to fail, but
-    // that seems dangerous.
-    //
-    if (!TestUtil.isProtocolVersion(con, 3)) {
-      return;
-    }
-
-    byte buf[] = new byte[10];
+    byte[] buf = new byte[10];
     for (int i = 0; i < buf.length; i++) {
       buf[i] = (byte) i;
     }
@@ -613,68 +624,79 @@ public class PreparedStatementTest extends BaseTest4 {
       pstmt.setObject(1, "this is not boolean", Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean: \"this is not boolean\"", e.getMessage());
     }
     try {
       pstmt.setObject(1, 'X', Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean: \"X\"", e.getMessage());
     }
     try {
       java.io.File obj = new java.io.File("");
       pstmt.setObject(1, obj, Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean", e.getMessage());
     }
     try {
       pstmt.setObject(1, "1.0", Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean: \"1.0\"", e.getMessage());
     }
     try {
       pstmt.setObject(1, "-1", Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean: \"-1\"", e.getMessage());
     }
     try {
       pstmt.setObject(1, "ok", Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean: \"ok\"", e.getMessage());
     }
     try {
       pstmt.setObject(1, 0.99f, Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean: \"0.99\"", e.getMessage());
     }
     try {
       pstmt.setObject(1, -0.01d, Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean: \"-0.01\"", e.getMessage());
     }
     try {
       pstmt.setObject(1, new java.sql.Date(0), Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean", e.getMessage());
     }
     try {
       pstmt.setObject(1, new java.math.BigInteger("1000"), Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean: \"1000\"", e.getMessage());
     }
     try {
       pstmt.setObject(1, Math.PI, Types.BOOLEAN);
       fail();
     } catch (SQLException e) {
-      assertEquals(e.getSQLState(), org.postgresql.util.PSQLState.CANNOT_COERCE.getState());
+      assertEquals(org.postgresql.util.PSQLState.CANNOT_COERCE.getState(), e.getSQLState());
+      assertEquals("Cannot cast to boolean: \"3.141592653589793\"", e.getMessage());
     }
     pstmt.close();
   }
@@ -749,8 +771,8 @@ public class PreparedStatementTest extends BaseTest4 {
     assertTrue(rs.wasNull());
 
     assertTrue(rs.next());
-    assertTrue("expected true, received " + rs.getBoolean(1), rs.getBoolean(1) == true);
-    assertTrue("expected false,received " + rs.getBoolean(2), rs.getBoolean(2) == false);
+    assertTrue("expected true, received " + rs.getBoolean(1), rs.getBoolean(1));
+    assertFalse("expected false,received " + rs.getBoolean(2), rs.getBoolean(2));
 
     rs.close();
     pstmt.close();
@@ -1093,18 +1115,76 @@ public class PreparedStatementTest extends BaseTest4 {
   }
 
   @Test
+  public void testSetObjectWithBigDecimal() throws SQLException {
+    TestUtil.createTempTable(con, "number_fallback",
+            "n1 numeric");
+    PreparedStatement psinsert = con.prepareStatement("insert into number_fallback values(?)");
+    PreparedStatement psselect = con.prepareStatement("select n1 from number_fallback");
+
+    psinsert.setObject(1, new BigDecimal("733"));
+    psinsert.execute();
+
+    ResultSet rs = psselect.executeQuery();
+    assertTrue(rs.next());
+    assertTrue(
+        "expected 733, but received " + rs.getBigDecimal(1),
+        new BigDecimal("733").compareTo(rs.getBigDecimal(1)) == 0);
+
+    psinsert.close();
+    psselect.close();
+  }
+
+  @Test
+  public void testSetObjectNumberFallbackWithBigInteger() throws SQLException {
+    TestUtil.createTempTable(con, "number_fallback",
+            "n1 numeric");
+    PreparedStatement psinsert = con.prepareStatement("insert into number_fallback values(?)");
+    PreparedStatement psselect = con.prepareStatement("select n1 from number_fallback");
+
+    psinsert.setObject(1, new BigInteger("733"));
+    psinsert.execute();
+
+    ResultSet rs = psselect.executeQuery();
+    assertTrue(rs.next());
+    assertTrue(
+        "expected 733, but received " + rs.getBigDecimal(1),
+        new BigDecimal("733").compareTo(rs.getBigDecimal(1)) == 0);
+
+    psinsert.close();
+    psselect.close();
+  }
+
+  @Test
+  public void testSetObjectNumberFallbackWithAtomicLong() throws SQLException {
+    TestUtil.createTempTable(con, "number_fallback",
+            "n1 numeric");
+    PreparedStatement psinsert = con.prepareStatement("insert into number_fallback values(?)");
+    PreparedStatement psselect = con.prepareStatement("select n1 from number_fallback");
+
+    psinsert.setObject(1, new AtomicLong(733));
+    psinsert.execute();
+
+    ResultSet rs = psselect.executeQuery();
+    assertTrue(rs.next());
+    assertTrue(
+        "expected 733, but received " + rs.getBigDecimal(1),
+        new BigDecimal("733").compareTo(rs.getBigDecimal(1)) == 0);
+
+    psinsert.close();
+    psselect.close();
+  }
+
+  @Test
   public void testUnknownSetObject() throws SQLException {
     PreparedStatement pstmt = con.prepareStatement("INSERT INTO intervaltable(i) VALUES (?)");
 
-    if (TestUtil.isProtocolVersion(con, 3)) {
-      pstmt.setString(1, "1 week");
-      try {
-        pstmt.executeUpdate();
-        assertTrue("When using extended protocol, interval vs character varying type mismatch error is expected",
-            preferQueryMode == PreferQueryMode.SIMPLE);
-      } catch (SQLException sqle) {
-        // ERROR: column "i" is of type interval but expression is of type character varying
-      }
+    pstmt.setString(1, "1 week");
+    try {
+      pstmt.executeUpdate();
+      assertTrue("When using extended protocol, interval vs character varying type mismatch error is expected",
+          preferQueryMode == PreferQueryMode.SIMPLE);
+    } catch (SQLException sqle) {
+      // ERROR: column "i" is of type interval but expression is of type character varying
     }
 
     pstmt.setObject(1, "1 week", Types.OTHER);
@@ -1163,12 +1243,10 @@ public class PreparedStatementTest extends BaseTest4 {
       pstmt.executeBatch();
     }
     pstmt.close();
-    pstmt = con.prepareStatement("select count(*) from pg_prepared_statements where statement = 'INSERT INTO batch_tab_threshold5 (id, val) VALUES ($1,$2)'");
-    ResultSet rs = pstmt.executeQuery();
-    assertTrue(rs.next());
-    assertEquals(1, rs.getInt(1));
-    rs.close();
-    pstmt.close();
+    assertTrue("prepareThreshold=5, so the statement should be server-prepared",
+        ((PGStatement) pstmt).isUseServerPrepare());
+    assertEquals("prepareThreshold=5, so the statement should be server-prepared", 1,
+        getNumberOfServerPreparedStatements("INSERT INTO batch_tab_threshold5 (id, val) VALUES ($1,$2)"));
   }
 
   @Test
@@ -1193,12 +1271,39 @@ public class PreparedStatementTest extends BaseTest4 {
       pstmt.executeBatch();
     }
     pstmt.close();
-    pstmt = con.prepareStatement("select count(*) from pg_prepared_statements where statement = 'INSERT INTO batch_tab_threshold0 (id, val) VALUES ($1,$2)'");
-    ResultSet rs = pstmt.executeQuery();
-    assertTrue(rs.next());
-    assertEquals(0, rs.getInt(1));
-    rs.close();
-    pstmt.close();
+
+    assertFalse("prepareThreshold=0, so the statement should not be server-prepared",
+        ((PGStatement) pstmt).isUseServerPrepare());
+    assertEquals("prepareThreshold=0, so the statement should not be server-prepared", 0,
+        getNumberOfServerPreparedStatements("INSERT INTO batch_tab_threshold0 (id, val) VALUES ($1,$2)"));
+  }
+
+  @Test
+  public void testSelectPrepareThreshold0AutoCommitFalseFetchSizeNonZero() throws SQLException {
+    assumeBinaryModeRegular();
+    Assume.assumeTrue("simple protocol only does not support prepared statement requests",
+        preferQueryMode != PreferQueryMode.SIMPLE);
+
+    con.setAutoCommit(false);
+    PreparedStatement pstmt = null;
+    ResultSet rs = null;
+    try {
+      pstmt = con.prepareStatement("SELECT 42");
+      ((PgStatement) pstmt).setPrepareThreshold(0);
+      pstmt.setFetchSize(1);
+      rs = pstmt.executeQuery();
+      rs.next();
+      assertEquals(42, rs.getInt(1));
+    } finally {
+      TestUtil.closeQuietly(rs);
+      TestUtil.closeQuietly(pstmt);
+    }
+
+    assertFalse("prepareThreshold=0, so the statement should not be server-prepared",
+        ((PGStatement) pstmt).isUseServerPrepare());
+
+    assertEquals("prepareThreshold=0, so the statement should not be server-prepared", 0,
+        getNumberOfServerPreparedStatements("SELECT 42"));
   }
 
 }

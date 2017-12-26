@@ -116,7 +116,7 @@ Connection conn = DriverManager.getConnection(url);
 
 	Class name of hostname verifier. Defaults to using `org.postgresql.ssl.jdbc4.LibPQFactory.verify()`
 
-* **sslpaswordcallback** = String
+* **sslpasswordcallback** = String
 
 	Class name of the SSL password provider. Defaults to `org.postgresql.ssl.jdbc4.LibPQFactory.ConsoleCallbackHandler`
 
@@ -141,7 +141,7 @@ Connection conn = DriverManager.getConnection(url);
 
 	Logger level of the driver. Allowed values: <code>OFF</code>, <code>DEBUG</code> or <code>TRACE</code>.
 	This enable the <code>java.util.logging.Logger</code> Level of the driver based on the following mapping
-	of levels: DEBUG -&gt; FINE, TRACE -&gt; FINEST. This property is intented for debug the driver and
+	of levels: DEBUG -&gt; FINE, TRACE -&gt; FINEST. This property is intended for debug the driver and
 	not for general SQL query debug.
 
 * **loggerFile** = String
@@ -176,18 +176,15 @@ Connection conn = DriverManager.getConnection(url);
 	It captures a stacktrace at each `Connection` opening and if the `finalize()`
 	method is reached without having been closed the stacktrace is printed
 	to the log.
+	
+* **autosave** = String
 
-* **autoCloseUnclosedStatements** = boolean
+    Specifies what the driver should do if a query fails. In `autosave=always` mode, JDBC driver sets a savepoint before each query,
+    and rolls back to that savepoint in case of failure. In `autosave=never` mode (default), no savepoint dance is made ever.
+    In `autosave=conservative` mode, savepoint is set for each query, however the rollback is done only for rare cases
+    like 'cached statement cannot change return type' or 'statement XXX is not valid' so JDBC driver rollsback and retries
 
-	Clients may leak `Statement` objects by failing to call its `close()` method. 
-	If `autoCloseUnclosedStatements` is set to "true" then finalizer will be used 
-	as a stopgap solution to `close()` the resource.
-
-	*Note:* *Creating finalizable objects is very expensive in lots of JVM.
-	It dramatically impacts `Statement` instantiation 
-	and increases time spent in garbage collection, so avoid using `autoCloseUnclosedStatements`="true"
-	for highly loaded applications unless you are sure your JVM can crater 
-	finalizer traffic.*
+    The default is `never` 
 
 * **binaryTransferEnable** = String
 
@@ -228,6 +225,16 @@ Connection conn = DriverManager.getConnection(url);
 	The main aim of this setting is to prevent `OutOfMemoryError`.
 	The value of 0 disables the cache.
 
+* **preferQueryMode** = String
+
+    Specifies which mode is used to execute queries to database: simple means ('Q' execute, no parse, no bind, text mode only), 
+    extended means always use bind/execute messages, extendedForPrepared means extended for prepared statements only, 
+    extendedCacheEverything means use extended protocol and try cache every statement 
+    (including Statement.execute(String sql)) in a query cache.
+    extended | extendedForPrepared | extendedCacheEverything | simple
+
+    The default is extended
+
 * **defaultRowFetchSize** = int
 
 	Determine the number of rows fetched in `ResultSet`
@@ -256,6 +263,13 @@ Connection conn = DriverManager.getConnection(url);
 	be used as both a brute force global query timeout and a method of
 	detecting network problems. The timeout is specified in seconds and a
 	value of zero means that it is disabled.
+
+* **cancelSignalTimeout** = int
+
+  Cancel command is sent out of band over its own connection, so cancel message can itself get
+  stuck. This property controls "connect timeout" and "socket timeout" used for cancel commands.
+  The timeout is specified in seconds. Default value is 10 seconds.
+
 
 * **tcpKeepAlive** = boolean
 
@@ -343,7 +357,9 @@ Connection conn = DriverManager.getConnection(url);
 
 * **disableColumnSanitiser** = boolean
 
-	Enable optimization that disables column name sanitiser.
+	Setting this to true disables column name sanitiser. 
+	The sanitiser folds columns in the resultset to lowercase. 
+	The default is to sanitise the columns (off).
 
 * **assumeMinServerVersion** = String
 
@@ -391,26 +407,38 @@ Connection conn = DriverManager.getConnection(url);
 	This will change batch inserts from insert into foo (col1, col2, col3) values (1,2,3) into 
 	insert into foo (col1, col2, col3) values (1,2,3), (4,5,6) this provides 2-3x performance improvement
 
-	<a name="connection-failover"></a>
-	## Connection Fail-over
+* **replication** = String
 
-	To support simple connection fail-over it is possible to define multiple endpoints
-	(host and port pairs) in the connection url separated by commas.
-	The driver will try to once connect to each of them in order until the connection succeeds. 
-	If none succeed, a normal connection exception is thrown.
+   Connection parameter passed in the startup message. This parameter accepts two values; "true"
+   and `database`. Passing `true` tells the backend to go into walsender mode, wherein a small set
+   of replication commands can be issued instead of SQL statements. Only the simple query protocol
+   can be used in walsender mode. Passing "database" as the value instructs walsender to connect
+   to the database specified in the dbname parameter, which will allow the connection to be used
+   for logical replication from that database. <p>Parameter should be use together with 
+   `assumeMinServerVersion` with parameter >= 9.4 (backend >= 9.4)</p>
+    
+    
+<a name="connection-failover"></a>
+## Connection Fail-over
 
-	The syntax for the connection url is:
+To support simple connection fail-over it is possible to define multiple endpoints
+(host and port pairs) in the connection url separated by commas.
+The driver will try to once connect to each of them in order until the connection succeeds. 
+If none succeed, a normal connection exception is thrown.
 
-	`jdbc:postgresql://host1:port1,host2:port2/database`
+The syntax for the connection url is:
 
-	The simple connection fail-over is useful when running against a high availability 
-	postgres installation that has identical data on each node. 
-	For example streaming replication postgres or postgres-xc cluster.
+`jdbc:postgresql://host1:port1,host2:port2/database`
 
-	For example an application can create two connection pools. 
-	One data source is for writes, another for reads. The write pool limits connections only to master node:
+The simple connection fail-over is useful when running against a high availability 
+postgres installation that has identical data on each node. 
+For example streaming replication postgres or postgres-xc cluster.
 
-	`jdbc:postgresql://node1,node2,node3/accounting?targetServerType=master`.
-	And read pool balances connections between slaves nodes, but allows connections also to master if no slaves are available:
+For example an application can create two connection pools. 
+One data source is for writes, another for reads. The write pool limits connections only to master node:
 
-	`jdbc:postgresql://node1,node2,node3/accounting?targetServerType=preferSlave&loadBalanceHosts=true`
+`jdbc:postgresql://node1,node2,node3/accounting?targetServerType=master`.
+
+And read pool balances connections between slaves nodes, but allows connections also to master if no slaves are available:
+
+`jdbc:postgresql://node1,node2,node3/accounting?targetServerType=preferSlave&loadBalanceHosts=true`

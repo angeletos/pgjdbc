@@ -993,7 +993,7 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
   }
 
   /**
-   * @param replication replication argument
+   * @param replication set to 'database' for logical replication or 'true' for physical replication
    * @see PGProperty#REPLICATION
    */
   public void setReplication(String replication) {
@@ -1001,6 +1001,7 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
   }
 
   /**
+   * @return null, 'database', or 'true
    * @see PGProperty#REPLICATION
    */
   public String getReplication() {
@@ -1075,6 +1076,15 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
   }
 
   /**
+   * Generates a {@link DriverManager} URL from the other properties supplied.
+   *
+   * @return {@link DriverManager} URL from the other properties supplied
+   */
+  public String getURL() {
+    return getUrl();
+  }
+
+  /**
    * Sets properties from a {@link DriverManager} URL.
    *
    * @param url properties to set
@@ -1086,6 +1096,16 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
     for (PGProperty property : PGProperty.values()) {
       setProperty(property, property.get(p));
     }
+  }
+
+  /**
+   * Sets properties from a {@link DriverManager} URL.
+   * Added to follow convention used in other DBMS.
+   *
+   * @param url properties to set
+   */
+  public void setURL(String url) {
+    setUrl(url);
   }
 
   public String getProperty(String name) throws SQLException {
@@ -1236,7 +1256,7 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
 
   /**
    * @see PGProperty#PREFER_QUERY_MODE
-   * @param preferQueryMode extended, simple, extendedForPrepared, or extendedCacheEveryting
+   * @param preferQueryMode extended, simple, extendedForPrepared, or extendedCacheEverything
    */
   public void setPreferQueryMode(PreferQueryMode preferQueryMode) {
     PGProperty.PREFER_QUERY_MODE.set(properties, preferQueryMode.value());

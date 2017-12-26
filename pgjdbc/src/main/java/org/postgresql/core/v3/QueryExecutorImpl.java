@@ -62,6 +62,9 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 
 /**
  * QueryExecutor implementation for the V3 protocol.
@@ -69,6 +72,8 @@ import java.util.logging.Logger;
 public class QueryExecutorImpl extends QueryExecutorBase {
 
   private static final Logger LOGGER = Logger.getLogger(QueryExecutorImpl.class.getName());
+  private static final Pattern COMMAND_COMPLETE_PATTERN = Pattern.compile("^([A-Za-z]++)(?: (\\d++))?+(?: (\\d++))?+$");
+
   /**
    * TimeZone of the current connection (TimeZone backend parameter)
    */
@@ -780,7 +785,7 @@ public class QueryExecutorImpl extends QueryExecutorBase {
           LOGGER.log(Level.FINEST, " <=BE FunctionCallResponse({0} bytes)", valueLen);
 
           if (valueLen != -1) {
-            byte buf[] = new byte[valueLen];
+            byte[] buf = new byte[valueLen];
             pgStream.receive(buf, 0, valueLen);
             returnValue = buf;
           }
@@ -819,7 +824,7 @@ public class QueryExecutorImpl extends QueryExecutorBase {
     if (!suppressBegin) {
       doSubprotocolBegin();
     }
-    byte buf[] = Utils.encodeUTF8(sql);
+    byte[] buf = Utils.encodeUTF8(sql);
 
     try {
       LOGGER.log(Level.FINEST, " FE=> Query(CopyStart)");
@@ -1747,16 +1752,17 @@ public class QueryExecutorImpl extends QueryExecutorBase {
         : "Queries that might contain ; must be executed with QueryExecutor.QUERY_EXECUTE_AS_SIMPLE mode. "
         + "Given query is " + query.getNativeSql();
 
-    // nb: if we decide to use a portal (usePortal == true) we must also use a named statement
-    // (oneShot == false) as otherwise the portal will be closed under us unexpectedly when
-    // the unnamed statement is next reused.
+    // As per "46.2. Message Flow" documentation (quote from 9.1):
+    // If successfully created, a named portal object lasts till the end of the current transaction, unless explicitly destroyed
+    //
+    // That is named portals do not require to use named statements.
 
     boolean noResults = (flags & QueryExecutor.QUERY_NO_RESULTS) != 0;
     boolean noMeta = (flags & QueryExecutor.QUERY_NO_METADATA) != 0;
     boolean describeOnly = (flags & QueryExecutor.QUERY_DESCRIBE_ONLY) != 0;
     boolean usePortal = (flags & QueryExecutor.QUERY_FORWARD_CURSOR) != 0 && !noResults && !noMeta
         && fetchSize > 0 && !describeOnly;
-    boolean oneShot = (flags & QueryExecutor.QUERY_ONESHOT) != 0 && !usePortal;
+    boolean oneShot = (flags & QueryExecutor.QUERY_ONESHOT) != 0;
     boolean noBinaryTransfer = (flags & QUERY_NO_BINARY_TRANSFER) != 0;
     boolean forceDescribePortal = (flags & QUERY_FORCE_DESCRIBE_PORTAL) != 0;
 
@@ -1786,8 +1792,8 @@ public class QueryExecutorImpl extends QueryExecutorBase {
         || (!oneShot && paramsHasUnknown && queryHasUnknown && !query.isStatementDescribed());
 
     if (!describeStatement && paramsHasUnknown && !queryHasUnknown) {
-      int queryOIDs[] = query.getStatementTypes();
-      int paramOIDs[] = params.getTypeOIDs();
+      int[] queryOIDs = query.getStatementTypes();
+      int[] paramOIDs = params.getTypeOIDs();
       for (int i = 0; i < paramOIDs.length; i++) {
         // Only supply type information when there isn't any
         // already, don't arbitrarily overwrite user supplied
@@ -2507,34 +2513,41 @@ public class QueryExecutorImpl extends QueryExecutorBase {
   }
 
   private void interpretCommandStatus(String status, ResultHandler handler) {
-    int update_count = 0;
-    long insert_oid = 0;
-
-    if (status.startsWith("INSERT") || status.startsWith("UPDATE") || status.startsWith("DELETE")
-        || status.startsWith("MOVE")) {
+    long oid = 0;
+    long count = 0;
+    Matcher matcher = COMMAND_COMPLETE_PATTERN.matcher(status);
+    if (matcher.matches()) {
+      // String command = matcher.group(1);
+      String group2 = matcher.group(2);
+      String group3 = matcher.group(3);
       try {
-        long updates = Long.parseLong(status.substring(1 + status.lastIndexOf(' ')));
-
-        // deal with situations where the update modifies more than 2^32 rows
-        if (updates > Integer.MAX_VALUE) {
-          update_count = Statement.SUCCESS_NO_INFO;
-        } else {
-          update_count = (int) updates;
+        if (group3 != null) {
+          // COMMAND OID ROWS
+          oid = Long.parseLong(group2);
+          count = Long.parseLong(group3);
+        } else if (group2 != null) {
+          // COMMAND ROWS
+          count = Long.parseLong(group2);
         }
-
-        if (status.startsWith("INSERT")) {
-          insert_oid =
-              Long.parseLong(status.substring(1 + status.indexOf(' '), status.lastIndexOf(' ')));
-        }
-      } catch (NumberFormatException nfe) {
+      } catch (NumberFormatException e) {
+        // As we're performing a regex validation prior to parsing, this should only
+        // occurr if the oid or count are out of range.
         handler.handleError(new PSQLException(
-            GT.tr("Unable to interpret the update count in command completion tag: {0}.", status),
+            GT.tr("Unable to parse the count in command completion tag: {0}.", status),
             PSQLState.CONNECTION_FAILURE));
         return;
       }
     }
-
-    handler.handleCommandStatus(status, update_count, insert_oid);
+    int countAsInt = 0;
+    if (count > Integer.MAX_VALUE) {
+      // If command status indicates that we've modified more than Integer.MAX_VALUE rows
+      // then we set the result count to reflect that we cannot provide the actual number
+      // due to the JDBC field being an int rather than a long.
+      countAsInt = Statement.SUCCESS_NO_INFO;
+    } else if (count > 0) {
+      countAsInt = (int) count;
+    }
+    handler.handleCommandStatus(status, countAsInt, oid);
   }
 
   private void receiveRFQ() throws IOException {

@@ -27,6 +27,7 @@ my %author_url = (
   'Marc Petzold' => 'https://github.com/dosimeta',
   'Marios Trivyzas' => 'https://github.com/matriv',
   'Mathias Fußenegger' => 'https://github.com/mfussenegger',
+  'Michael Glaesemann' => 'https://github.com/grzm',
   'Minglei Tu' => 'https://github.com/tminglei',
   'Pavel Raiskup' => 'https://github.com/praiskup',
   'Petro Semeniuk' => 'https://github.com/PetroSemeniuk',
@@ -34,6 +35,7 @@ my %author_url = (
   'Philippe Marschall' => 'https://github.com/marschall',
   'Rikard Pavelic' => 'https://github.com/zapov',
   'Robert Zenz' => 'https://github.com/RobertZenz',
+  'Robert \'Bobby\' Zenz' => 'https://github.com/RobertZenz',
   'Roman Ivanov' => 'https://github.com/romani',
   'Sebastian Utz' => 'https://github.com/seut',
   'slmsbrhgn' => 'https://github.com/slmsbrhgn',
@@ -79,7 +81,7 @@ while(<>) {
   print $subject.$pr." [".$shortSha."](https://github.com/pgjdbc/pgjdbc/commit/$sha)\n";
 }
 
-print "<a name=\"contributors_$version\"></a>\n";
+print "<a name=\"contributors_{{ page.version }}\"></a>\n";
 print "### Contributors to this release\n\n";
 
 print "We thank the following people for their contributions to this release.\n\n";

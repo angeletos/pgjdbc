@@ -262,7 +262,7 @@ public class LogicalReplicationTest {
    * wait new changes and until waiting messages from client ignores.
    */
   @Test(timeout = 1000)
-  @HaveMinimalServerVersion("10.1")
+  @HaveMinimalServerVersion("11.1")
   public void testAfterCloseReplicationStreamDBSlotStatusNotActive() throws Exception {
     PGConnection pgConnection = (PGConnection) replConnection;
 
@@ -333,7 +333,7 @@ public class LogicalReplicationTest {
    * wait new changes and until waiting messages from client ignores.
    */
   @Test(timeout = 10000)
-  @HaveMinimalServerVersion("10.1")
+  @HaveMinimalServerVersion("11.1")
   public void testDuringSendBigTransactionConnectionCloseSlotStatusNotActive() throws Exception {
     PGConnection pgConnection = (PGConnection) replConnection;
 
@@ -383,7 +383,7 @@ public class LogicalReplicationTest {
    * wait new changes and until waiting messages from client ignores.
    */
   @Test(timeout = 60000)
-  @HaveMinimalServerVersion("10.1")
+  @HaveMinimalServerVersion("11.1")
   public void testDuringSendBigTransactionReplicationStreamCloseNotActive() throws Exception {
     PGConnection pgConnection = (PGConnection) replConnection;
 
@@ -443,6 +443,8 @@ public class LogicalReplicationTest {
     result.addAll(receiveMessage(stream, 3));
 
     replConnection.close();
+    waitStopReplicationSlot();
+
     replConnection = openReplicationConnection();
     pgConnection = (PGConnection) replConnection;
 
@@ -930,7 +932,7 @@ public class LogicalReplicationTest {
     try {
       rs = st.executeQuery("select "
           + (((BaseConnection) sqlConnection).haveMinimumServerVersion(ServerVersion.v10)
-          ? "pg_current_wal_location()" : "pg_current_xlog_location()"));
+          ? "pg_current_wal_lsn()" : "pg_current_xlog_location()"));
 
       if (rs.next()) {
         String lsn = rs.getString(1);
