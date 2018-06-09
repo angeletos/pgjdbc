@@ -5,6 +5,8 @@
 
 package org.postgresql.test.jdbc2;
 
+import org.postgresql.core.OidToStringTest;
+import org.postgresql.core.OidValueOfTest;
 import org.postgresql.core.ParserTest;
 import org.postgresql.core.ReturningParserTest;
 import org.postgresql.core.v3.V3ParameterListTests;
@@ -31,6 +33,7 @@ import org.junit.runners.Suite;
 
         DriverTest.class,
         ConnectionTest.class,
+        DateStyleTest.class,
         DatabaseMetaDataTest.class,
         DatabaseMetaDataPropertiesTest.class,
         SearchPathLookupTest.class,
@@ -61,6 +64,7 @@ import org.junit.runners.Suite;
 
         ResultSetTest.class,
         ResultSetMetaDataTest.class,
+        StringTypeUnspecifiedArrayTest.class,
         ArrayTest.class,
         PrimitiveArraySupportTest.class,
         RefCursorTest.class,
@@ -74,6 +78,9 @@ import org.junit.runners.Suite;
         TimezoneCachingTest.class,
         ParserTest.class,
         ReturningParserTest.class,
+
+        OidToStringTest.class,
+        OidValueOfTest.class,
 
         PreparedStatementTest.class,
         StatementTest.class,
@@ -91,6 +98,7 @@ import org.junit.runners.Suite;
         MiscTest.class,
         NotifyTest.class,
         DatabaseEncodingTest.class,
+        ClientEncodingTest.class,
 
         BlobTest.class,
         BlobTransactionTest.class,
@@ -117,7 +125,8 @@ import org.junit.runners.Suite;
         CopyTest.class,
         CopyLargeFileTest.class,
         ServerErrorTest.class,
-        UpsertTest.class
+        UpsertTest.class,
+        OuterJoinSyntaxTest.class
 })
 public class Jdbc2TestSuite {
 }

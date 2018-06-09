@@ -51,6 +51,7 @@ public enum PSQLState {
   NOT_IMPLEMENTED("0A000"),
 
   DATA_ERROR("22000"),
+  STRING_DATA_RIGHT_TRUNCATION("22001"),
   NUMERIC_VALUE_OUT_OF_RANGE("22003"),
   BAD_DATETIME_FORMAT("22007"),
   DATETIME_OVERFLOW("22008"),
@@ -102,6 +103,14 @@ public enum PSQLState {
 
   public String getState() {
     return this.state;
+  }
+
+  public static boolean isConnectionError(String psqlState) {
+    return PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(psqlState)
+        || PSQLState.CONNECTION_DOES_NOT_EXIST.getState().equals(psqlState)
+        || PSQLState.CONNECTION_REJECTED.getState().equals(psqlState)
+        || PSQLState.CONNECTION_FAILURE.getState().equals(psqlState)
+        || PSQLState.CONNECTION_FAILURE_DURING_TRANSACTION.getState().equals(psqlState);
   }
 
 }

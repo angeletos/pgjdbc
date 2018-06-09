@@ -35,8 +35,6 @@
 
 
 %global section		devel
-%global upstreamrel	git
-%global upstreammajor	9.5
 %global source_path	pgjdbc/src/main/java/org/postgresql
 %global parent_ver	GENERATED
 %global parent_poms_builddir	./pgjdbc-parent-poms
@@ -46,17 +44,17 @@
 
 Summary:	JDBC driver for PostgreSQL
 Name:		postgresql-jdbc
-Version:	%upstreammajor.%{upstreamrel}
+Version:	GENERATED
 Release:	GENERATED
 License:	BSD
 URL:		http://jdbc.postgresql.org/
 
-Source0:	REL%{version}.tar.gz
+Source0:	https://github.com/pgjdbc/pgjdbc/archive/REL%{version}/pgjdbc-REL%{version}.tar.gz
 
 # Upstream moved parent pom.xml into separate project (even though there is only
 # one dependant project on it?).  Let's try to not complicate packaging by
 # having separate spec file for it, too.
-Source1:	https://github.com/pgjdbc/pgjdbc-parent-poms/archive/REL%parent_ver.tar.gz
+Source1:	https://github.com/pgjdbc/pgjdbc-parent-poms/archive/REL%parent_ver/pgjdbc-parent-poms-REL%{parent_ver}.tar.gz
 
 BuildArch:	noarch
 BuildRequires:	java-devel >= 1.8
@@ -69,11 +67,11 @@ BuildRequires:	maven-plugin-build-helper
 BuildRequires:	classloader-leak-test-framework
 
 BuildRequires:	mvn(com.ongres.scram:client)
+BuildRequires:	mvn(org.apache.maven.plugins:maven-clean-plugin)
 
 %if %runselftest
 BuildRequires:	postgresql-contrib
-BuildRequires:	postgresql-devel
-BuildRequires:	postgresql-server
+BuildRequires:	postgresql-test-rpm-macros
 %endif
 
 # gettext is only needed if we try to update translations
@@ -101,7 +99,7 @@ This package contains the API Documentation for %{name}.
 
 
 %prep
-%setup -c -q -a 1 -n pgjdbc-REL%version
+%setup -c -q -a 1
 
 mv pgjdbc-REL%version/* .
 mv pgjdbc-parent-poms-REL%parent_ver pgjdbc-parent-poms
@@ -142,7 +140,7 @@ mkdir -p pgjdbc/target/generated-sources/annotations
 
 # Include PostgreSQL testing methods and variables.
 %if %runselftest
-%pgtests_init
+%postgresql_tests_init
 
 PGTESTS_LOCALE=C.UTF-8
 
@@ -160,7 +158,7 @@ protocolVersion=0
 EOF
 
 # Start the local PG cluster.
-%pgtests_start
+%postgresql_tests_start
 %else
 # -f is equal to -Dmaven.test.skip=true
 opts="-f"
